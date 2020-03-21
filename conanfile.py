@@ -12,6 +12,10 @@ class LerclibConan(ConanFile):
     exports_sources = ["CMakeLists.txt", "patches/**"]
     generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
+    options = {"shared": [True, False], "fPIC": [True, False]}
+    default_options = {"shared": False, "fPIC": True}
+
+    _cmake = None
 
     @property
     def _source_subfolder(self):
@@ -21,27 +25,31 @@ class LerclibConan(ConanFile):
     def _build_subfolder(self):
         return "build_subfolder"
 
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.fPIC
+
     def source(self):
         tools.get(**self.conan_data["sources"][self.version])
         os.rename("lerc-" + self.version, self._source_subfolder)
 
     def build(self):
-        if "patches" in self.conan_data and self.version in self.conan_data["patches"]:
-            for patch in self.conan_data["patches"][self.version]:
-                tools.patch(**patch)
-        cmake = CMake(self)
-        cmake.configure(build_folder=self._build_subfolder)
+        for patch in self.conan_data["patches"][self.version]:
+            tools.patch(**patch)
+        cmake = self._configure_cmake()
         cmake.build()
+
+    def _configure_cmake(self):
+        if self._cmake:
+            return self._cmake
+        self._cmake = CMake(self)
+        self._cmake.configure(build_folder=self._build_subfolder)
+        return self._cmake
 
     def package(self):
         self.copy("LICENSE", dst="licenses", src=self._source_subfolder)
-        self.copy("*.h", dst="include", src=os.path.join(self._source_subfolder, "include"))
-        build_lib_dir = os.path.join(self._build_subfolder, "lib")
-        build_bin_dir = os.path.join(self._build_subfolder, "bin")
-        self.copy(pattern="*.lib", dst="lib", src=build_lib_dir, keep_path=False)
-        self.copy(pattern="*.dylib", dst="lib", src=build_lib_dir, keep_path=False)
-        self.copy(pattern="*.so", dst="lib", src=build_lib_dir, keep_path=False)
-        self.copy(pattern="*.dll", dst="bin", src=build_bin_dir, keep_path=False)
+        cmake = self._configure_cmake()
+        cmake.install()
 
     def package_info(self):
         self.cpp_info.libs = tools.collect_libs(self)
