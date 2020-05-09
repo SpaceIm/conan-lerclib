@@ -8,4 +8,4 @@
 
 ## Description
 
-[Conan.io](https://conan.io) package for [LercLib](https://github.com/Esri/lerc).
+[Conan.io](https://conan.io) package for [Lerc](https://github.com/Esri/lerc).
