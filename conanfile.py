@@ -2,11 +2,11 @@ import os
 
 from conans import ConanFile, CMake, tools
 
-class LerclibConan(ConanFile):
-    name = "lerclib"
+class LercConan(ConanFile):
+    name = "lerc"
     description = "C++ library for limited Error Raster Compression."
     license = "Apache-2.0"
-    topics = ("conan", "lerclib", "lerc", "compression", "decompression", "image", "raster")
+    topics = ("conan", "lerc", "compression", "decompression", "image", "raster")
     homepage = "https://github.com/Esri/lerc"
     url = "https://github.com/conan-io/conan-center-index"
     exports_sources = ["CMakeLists.txt", "patches/**"]
@@ -31,10 +31,10 @@ class LerclibConan(ConanFile):
 
     def source(self):
         tools.get(**self.conan_data["sources"][self.version])
-        os.rename("lerc-" + self.version, self._source_subfolder)
+        os.rename(self.name + "-" + self.version, self._source_subfolder)
 
     def build(self):
-        for patch in self.conan_data["patches"][self.version]:
+        for patch in self.conan_data.get("patches", {}).get(self.version, []):
             tools.patch(**patch)
         cmake = self._configure_cmake()
         cmake.build()
@@ -53,5 +53,15 @@ class LerclibConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = tools.collect_libs(self)
-        if self.settings.os == "Linux":
-            self.cpp_info.system_libs.append("m")
+        if not self.options.shared and self._stdcpp_library:
+            self.cpp_info.system_libs.append(self._stdcpp_library)
+
+    @property
+    def _stdcpp_library(self):
+        libcxx = self.settings.get_safe("compiler.libcxx")
+        if libcxx in ("libstdc++", "libstdc++11"):
+            return "stdc++"
+        elif libcxx in ("libc++",):
+            return "c++"
+        else:
+            return False
